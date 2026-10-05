@@ -1,0 +1,9 @@
+# Cloudflare recommends a remotely-managed tunnel for most deployments.
+# If you use a locally-managed tunnel, replace the placeholders below.
+tunnel: YOUR_TUNNEL_ID
+credentials-file: /etc/cloudflared/YOUR_TUNNEL_ID.json
+
+ingress:
+  - hostname: fitness.jamestd.co.uk
+    service: http://127.0.0.1:43817
+  - service: http_status:404

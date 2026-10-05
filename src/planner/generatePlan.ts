@@ -1,6 +1,8 @@
 import { getTotals, validatePlan } from './validator.js'
+import { DAY_NAMES } from './types.js'
+import type { DayName, Intensity, PlanDay, Preferences, Workout, WeeklyPlan } from './types.js'
 
-export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+export const DAYS = [...DAY_NAMES]
 
 const strengthNames = [
   'Back & biceps',
@@ -11,7 +13,7 @@ const strengthNames = [
   'Shoulders',
 ]
 
-const strengthDurations = {
+const strengthDurations: Record<string, number> = {
   'Back & biceps': 55,
   'Chest & triceps': 55,
   Arms: 40,
@@ -21,7 +23,7 @@ const strengthDurations = {
   Legs: 55,
 }
 
-function capacityFor(day, preferences) {
+function capacityFor(day: DayName, preferences: Preferences): number {
   if (preferences.restDay === day) return 0
   if (preferences.unavailableDays.includes(day)) return 0
   if (preferences.workFromHomeDays.includes(day) || ['Saturday', 'Sunday'].includes(day)) return 3
@@ -29,7 +31,7 @@ function capacityFor(day, preferences) {
   return preferences.allowWeekdayDoubles ? 2 : 1
 }
 
-function typeFor(day, preferences) {
+function typeFor(day: DayName, preferences: Preferences): string {
   if (preferences.restDay === day) return 'Rest'
   if (preferences.unavailableDays.includes(day)) return 'Unavailable'
   if (preferences.busyDays.includes(day)) return 'Busy'
@@ -38,9 +40,9 @@ function typeFor(day, preferences) {
   return 'Office'
 }
 
-const run = (name, km, intensity, tags = []) => ({ id: crypto.randomUUID(), activity: 'running', name, distanceKm: km, actualDistanceKm: null, completed: false, durationMinutes: name === 'Lunch run' ? 30 : Math.round(km * 6), startPeriod: name === 'Lunch run' ? 'Lunch' : 'Morning', intensity, tags, locked: false })
-const ride = (name, km, intensity, tags = []) => ({ id: crypto.randomUUID(), activity: 'cycling', name, distanceKm: km, actualDistanceKm: null, completed: false, durationMinutes: Math.round(km * 2.5), startPeriod: name === 'Easy spin' ? 'After strength' : 'Evening', intensity, tags, locked: false })
-const strength = (name, intensity = 'moderate', tags = []) => ({
+const run = (name: string, km: number, intensity: Intensity, tags: string[] = []): Workout => ({ id: crypto.randomUUID(), activity: 'running', name, distanceKm: km, actualDistanceKm: null, completed: false, durationMinutes: name === 'Lunch run' ? 30 : Math.round(km * 6), startPeriod: name === 'Lunch run' ? 'Lunch' : 'Morning', intensity, tags, locked: false })
+const ride = (name: string, km: number, intensity: Intensity, tags: string[] = []): Workout => ({ id: crypto.randomUUID(), activity: 'cycling', name, distanceKm: km, actualDistanceKm: null, completed: false, durationMinutes: Math.round(km * 2.5), startPeriod: name === 'Easy spin' ? 'After strength' : 'Evening', intensity, tags, locked: false })
+const strength = (name: string, intensity: Intensity = 'moderate', tags: string[] = []): Workout => ({
   id: crypto.randomUUID(),
   activity: 'strength',
   name,
@@ -52,7 +54,7 @@ const strength = (name, intensity = 'moderate', tags = []) => ({
   completed: false,
 })
 
-function optimizeStrengthPairings(days) {
+function optimizeStrengthPairings(days: PlanDay[]): void {
   const strengthSlots = days
     .flatMap((day) => day.workouts
       .map((workout, index) => ({ day, workout, index }))
@@ -75,7 +77,7 @@ function optimizeStrengthPairings(days) {
   })
 }
 
-function balanceWeekends(days, preferences, blocked) {
+function balanceWeekends(days: PlanDay[], preferences: Preferences, blocked: Set<DayName>): void {
   const weekends = days.filter((day) => ['Saturday', 'Sunday'].includes(day.day) && day.capacity > 0)
 
   for (const weekend of weekends) {
@@ -99,11 +101,11 @@ function balanceWeekends(days, preferences, blocked) {
   }
 }
 
-function available(day, blocked, preferences) {
+function available(day: DayName, blocked: Set<DayName>, preferences: Preferences): boolean {
   return !blocked.has(day) && !preferences.unavailableDays.includes(day) && preferences.restDay !== day
 }
 
-function allocateBoundedDistance(total, slotCount, minimum, maximum) {
+function allocateBoundedDistance(total: number, slotCount: number, minimum: number, maximum: number): number[] {
   if (total <= 0) return []
   for (let count = Math.ceil(total / maximum); count <= slotCount; count += 1) {
     if (total < count * minimum || total > count * maximum) continue
@@ -120,7 +122,7 @@ function allocateBoundedDistance(total, slotCount, minimum, maximum) {
   return []
 }
 
-function allocateWithCaps(total, caps, minimum = 5) {
+function allocateWithCaps(total: number, caps: number[], minimum = 5): number[] {
   if (!caps.length || total < minimum) return []
   const activeCaps = caps.slice(0, Math.min(caps.length, Math.floor(total / minimum)))
   const distances = activeCaps.map(() => minimum)
@@ -134,12 +136,12 @@ function allocateWithCaps(total, caps, minimum = 5) {
   return distances
 }
 
-function choose(preferred, candidates, blocked, preferences) {
+function choose(preferred: DayName | null | undefined, candidates: DayName[], blocked: Set<DayName>, preferences: Preferences): DayName | undefined {
   if (preferred && available(preferred, blocked, preferences)) return preferred
   return candidates.find((day) => available(day, blocked, preferences))
 }
 
-function addWorkout(days, dayName, workout) {
+function addWorkout(days: PlanDay[], dayName: DayName, workout: Workout): boolean {
   const day = days.find((item) => item.day === dayName)
   if (day && day.workouts.length < day.capacity) {
     day.workouts.push(workout)
@@ -148,7 +150,7 @@ function addWorkout(days, dayName, workout) {
   return false
 }
 
-export function generateWeeklyPlan(preferences) {
+export function generateWeeklyPlan(preferences: Preferences, weekStart?: string): WeeklyPlan {
   const fatigueFactor = preferences.previousWeekFatigue === 'high' ? 0.85 : 1
   const runningMin = Math.min(preferences.runningMinKm, preferences.runningMaxKm)
   const runningMax = Math.max(preferences.runningMinKm, preferences.runningMaxKm)
@@ -158,11 +160,11 @@ export function generateWeeklyPlan(preferences) {
   const cyclingProgressionCap = preferences.previousCyclingKm > 0 ? Math.floor(preferences.previousCyclingKm * 1.15) : requestedCyclingTarget
   const runningTarget = Math.round(Math.min(requestedRunningTarget, runningProgressionCap) * fatigueFactor)
   const cyclingTarget = Math.round(Math.min(requestedCyclingTarget, cyclingProgressionCap) * fatigueFactor)
-  const days = DAYS.map((day) => ({ day, type: typeFor(day, preferences), capacity: capacityFor(day, preferences), workouts: [] }))
-  const blocked = new Set()
+  const days: PlanDay[] = DAYS.map((day) => ({ day, type: typeFor(day, preferences), capacity: capacityFor(day, preferences), workouts: [] }))
+  const blocked = new Set<DayName>()
 
   if (preferences.includeSpeedSession) {
-    const speedCandidates = ['Wednesday', 'Tuesday', 'Thursday', 'Friday']
+    const speedCandidates = (['Wednesday', 'Tuesday', 'Thursday', 'Friday'] as DayName[])
       .filter((day) => !preferences.workFromHomeDays.includes(day))
     const speedDay = choose(null, speedCandidates, blocked, preferences)
     if (speedDay) {
@@ -191,7 +193,7 @@ export function generateWeeklyPlan(preferences) {
     const strengthDays = DAYS.filter((dayName) => available(dayName, blocked, preferences))
         .filter((dayName) => {
           const day = days.find((item) => item.day === dayName)
-          return day.workouts.length < day.capacity
+          return day!.workouts.length < day!.capacity
         })
         .filter((dayName) => {
           if (weeklyStrengthNames[i % weeklyStrengthNames.length] !== 'Legs' && !(i === 0 && preferences.includeLegSession)) return true
@@ -204,20 +206,20 @@ export function generateWeeklyPlan(preferences) {
         .sort((a, b) => {
           const aDay = days.find((day) => day.day === a)
           const bDay = days.find((day) => day.day === b)
-          const aHasStrength = aDay.workouts.some((workout) => workout.activity === 'strength') ? 1 : 0
-          const bHasStrength = bDay.workouts.some((workout) => workout.activity === 'strength') ? 1 : 0
+          const aHasStrength = aDay!.workouts.some((workout) => workout.activity === 'strength') ? 1 : 0
+          const bHasStrength = bDay!.workouts.some((workout) => workout.activity === 'strength') ? 1 : 0
           if (aHasStrength !== bHasStrength) return aHasStrength - bHasStrength
-          const preferredRank = (dayName) => preferences.workFromHomeDays.includes(dayName)
+      const preferredRank = (dayName: DayName) => preferences.workFromHomeDays.includes(dayName)
             ? 0
             : ['Saturday', 'Sunday'].includes(dayName) ? 1 : preferences.busyDays.includes(dayName) ? 3 : 2
           const rankDifference = preferredRank(a) - preferredRank(b)
           if (rankDifference !== 0) return rankDifference
-          return aDay.workouts.length - bDay.workouts.length
+          return aDay!.workouts.length - bDay!.workouts.length
         })
     const dayName = strengthDays[0]
     if (!dayName) break
     let name = weeklyStrengthNames[i % weeklyStrengthNames.length]
-    let tags = []
+    let tags: string[] = []
     if (i === 0 && preferences.includeLegSession) { name = 'Legs'; tags = ['Legs'] }
     if (name === 'Core') tags = ['Core']
     addWorkout(days, dayName, strength(name, name === 'Legs' ? 'hard' : 'moderate', tags))
@@ -244,12 +246,12 @@ export function generateWeeklyPlan(preferences) {
     .filter((dayName) => available(dayName, blocked, preferences))
     .filter((dayName) => {
       const day = days.find((item) => item.day === dayName)
-      return day.workouts.length < day.capacity
+      return day!.workouts.length < day!.capacity
     })
     .sort((a, b) => {
       const aDay = days.find((day) => day.day === a)
       const bDay = days.find((day) => day.day === b)
-      return aDay.workouts.length - bDay.workouts.length
+      return aDay!.workouts.length - bDay!.workouts.length
     })
   const weekdayDistances = allocateBoundedDistance(remainingRun, weekdayRunCandidates.length, 5, 10)
   for (let index = 0; index < weekdayDistances.length; index += 1) {
@@ -263,17 +265,17 @@ export function generateWeeklyPlan(preferences) {
     .filter((day) => day !== longRideDay)
     .filter((dayName) => {
       const day = days.find((item) => item.day === dayName)
-      return day.workouts.length < day.capacity
+      return day!.workouts.length < day!.capacity
     })
   const cycleSlots = Math.min(4, cycleCandidates.length)
   const cycleDays = [...cycleCandidates]
     .sort((a, b) => {
-      const rank = (dayName) => {
+      const rank = (dayName: DayName) => {
         const day = days.find((item) => item.day === dayName)
         if (preferences.workFromHomeDays.includes(dayName)) return 0
-        if (day.workouts.length === 0) return 1
+        if (day!.workouts.length === 0) return 1
         if (['Saturday', 'Sunday'].includes(dayName)) return 2
-        if (day.workouts.some((workout) => workout.activity === 'strength')) return 3
+        if (day!.workouts.some((workout) => workout.activity === 'strength')) return 3
         return 4
       }
       return rank(a) - rank(b)
@@ -336,12 +338,12 @@ export function generateWeeklyPlan(preferences) {
     ? { ...preferences, runningMinKm: Math.max(0, runningTarget - 2), runningMaxKm: runningTarget + 2, cyclingMinKm: Math.max(0, cyclingTarget - 5), cyclingMaxKm: cyclingTarget + 5 }
     : preferences
   const validation = validatePlan(days, adjustedPreferences)
-  const notes = []
+  const notes: string[] = []
   if (preferences.previousWeekFatigue === 'high') notes.push('Weekly volume and strength duration reduced because you reported high fatigue.')
   if (runningTarget < requestedRunningTarget) notes.push(`Running reduced to ${runningTarget} km to limit the increase from last week's ${preferences.previousRunningKm} km.`)
   if (cyclingTarget < requestedCyclingTarget) notes.push(`Cycling reduced to ${cyclingTarget} km to limit the increase from last week's ${preferences.previousCyclingKm} km.`)
   return {
-    weekStart: new Date().toISOString().slice(0, 10),
+    weekStart: weekStart ?? new Date().toISOString().slice(0, 10),
     days,
     totals,
     validation,
