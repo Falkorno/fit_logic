@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body { @apply bg-stone-100 text-stone-900 antialiased; }
+  button, input, select { @apply outline-none; }
+  button:focus-visible, input:focus-visible, select:focus-visible { @apply ring-2 ring-emerald-500 ring-offset-2; }
+}
