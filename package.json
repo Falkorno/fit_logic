@@ -1,13 +1,15 @@
 {
-  "name": "weekly-fitness-planner",
+  "name": "pulse-training-planner",
   "private": true,
   "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "preview": "vite preview",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "worker:dev": "node worker/local-server.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
@@ -24,6 +26,7 @@
     "autoprefixer": "latest",
     "postcss": "latest",
     "tailwindcss": "^3.4.17",
-    "vitest": "latest"
+    "vitest": "latest",
+    "wrangler": "^4.148.0"
   }
 }

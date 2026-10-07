@@ -4,6 +4,43 @@ import type { DayName, Intensity, PlanDay, Preferences, Workout, WeeklyPlan } fr
 
 export const DAYS = [...DAY_NAMES]
 
+export interface GenerationProgress {
+  completedWorkouts: Workout[]
+  pastDays?: DayName[]
+}
+
+export function getPastDayNames(plan: WeeklyPlan, todayIso: string): DayName[] {
+  const weekStart = new Date(`${plan.weekStart}T00:00:00Z`)
+  return plan.days.filter((_, index) => {
+    const date = new Date(weekStart)
+    date.setUTCDate(weekStart.getUTCDate() + index)
+    return date.toISOString().slice(0, 10) < todayIso
+  }).map((day) => day.day)
+}
+export function getCompletedPastWorkouts(plan: WeeklyPlan, todayIso: string): Workout[] {
+  const weekStart = new Date(`${plan.weekStart}T00:00:00Z`)
+  return plan.days.flatMap((day, index) => {
+    const date = new Date(weekStart)
+    date.setUTCDate(weekStart.getUTCDate() + index)
+    return date.toISOString().slice(0, 10) < todayIso
+      ? day.workouts.filter((workout) => workout.completed)
+      : []
+  })
+}
+
+export function preservePastDays(existing: WeeklyPlan, generated: WeeklyPlan, todayIso: string): WeeklyPlan {
+  const weekStart = new Date(`${generated.weekStart}T00:00:00Z`)
+  const days = generated.days.map((generatedDay, index) => {
+    const date = new Date(weekStart)
+    date.setUTCDate(weekStart.getUTCDate() + index)
+    if (date.toISOString().slice(0, 10) >= todayIso) return generatedDay
+
+    const existingDay = existing.days.find((day) => day.day === generatedDay.day)
+    return existingDay ? structuredClone(existingDay) : generatedDay
+  })
+
+  return { ...generated, days }
+}
 const strengthNames = [
   'Back & biceps',
   'Chest & triceps',
@@ -150,7 +187,16 @@ function addWorkout(days: PlanDay[], dayName: DayName, workout: Workout): boolea
   return false
 }
 
-export function generateWeeklyPlan(preferences: Preferences, weekStart?: string): WeeklyPlan {
+export function generateWeeklyPlan(preferences: Preferences, weekStart?: string, progress?: GenerationProgress): WeeklyPlan {
+  const completedWorkouts = progress?.completedWorkouts ?? []
+  const completedRunningKm = completedWorkouts.filter((workout) => workout.activity === 'running').reduce((sum, workout) => sum + (workout.actualDistanceKm ?? workout.distanceKm ?? 0), 0)
+  const completedCyclingKm = completedWorkouts.filter((workout) => workout.activity === 'cycling').reduce((sum, workout) => sum + (workout.actualDistanceKm ?? workout.distanceKm ?? 0), 0)
+  const completedStrength = completedWorkouts.filter((workout) => workout.activity === 'strength')
+  const normalizeStrengthName = (name: string) => name.toLowerCase().replace(/\btris\b/g, 'triceps').replace(/[^a-z]+/g, ' ').trim()
+  const completedStrengthNames = new Set(completedStrength.map((workout) => normalizeStrengthName(workout.name)))
+  const completedSpeed = completedWorkouts.some((workout) => workout.activity === 'running' && workout.tags?.includes('Speed'))
+  const completedLongRun = completedWorkouts.some((workout) => workout.activity === 'running' && workout.tags?.includes('Long'))
+  const completedLongRide = completedWorkouts.some((workout) => workout.activity === 'cycling' && workout.tags?.includes('Long'))
   const fatigueFactor = preferences.previousWeekFatigue === 'high' ? 0.85 : 1
   const runningMin = Math.min(preferences.runningMinKm, preferences.runningMaxKm)
   const runningMax = Math.max(preferences.runningMinKm, preferences.runningMaxKm)
@@ -160,10 +206,13 @@ export function generateWeeklyPlan(preferences: Preferences, weekStart?: string)
   const cyclingProgressionCap = preferences.previousCyclingKm > 0 ? Math.floor(preferences.previousCyclingKm * 1.15) : requestedCyclingTarget
   const runningTarget = Math.round(Math.min(requestedRunningTarget, runningProgressionCap) * fatigueFactor)
   const cyclingTarget = Math.round(Math.min(requestedCyclingTarget, cyclingProgressionCap) * fatigueFactor)
+  const runningToPlan = Math.max(0, runningTarget - completedRunningKm)
+  const cyclingToPlan = Math.max(0, cyclingTarget - completedCyclingKm)
+  const strengthToPlan = Math.max(0, preferences.strengthSessions - completedStrength.length)
   const days: PlanDay[] = DAYS.map((day) => ({ day, type: typeFor(day, preferences), capacity: capacityFor(day, preferences), workouts: [] }))
-  const blocked = new Set<DayName>()
+  const blocked = new Set<DayName>(progress?.pastDays ?? [])
 
-  if (preferences.includeSpeedSession) {
+  if (preferences.includeSpeedSession && !completedSpeed && runningToPlan > 0) {
     const speedCandidates = (['Wednesday', 'Tuesday', 'Thursday', 'Friday'] as DayName[])
       .filter((day) => !preferences.workFromHomeDays.includes(day))
     const speedDay = choose(null, speedCandidates, blocked, preferences)
@@ -173,30 +222,31 @@ export function generateWeeklyPlan(preferences: Preferences, weekStart?: string)
     }
   }
 
-  const longRunDay = choose(preferences.preferredLongRunDay, ['Sunday', 'Saturday', 'Thursday', 'Tuesday'], blocked, preferences)
+  const longRunDay = completedLongRun || runningToPlan <= 0 ? undefined : choose(preferences.preferredLongRunDay, ['Sunday', 'Saturday', 'Thursday', 'Tuesday'], blocked, preferences)
   if (longRunDay) {
     const proposedLongRun = Math.round(runningTarget * 0.4)
     const longRunCap = preferences.previousLongRunKm > 0 ? Math.max(5, Math.floor(preferences.previousLongRunKm * 1.1)) : proposedLongRun
-    addWorkout(days, longRunDay, run('Long run', Math.min(proposedLongRun, longRunCap), 'hard', ['Long']))
+    addWorkout(days, longRunDay, run('Long run', Math.min(proposedLongRun, longRunCap, runningToPlan), 'hard', ['Long']))
   }
 
   const preferredWfhRideDay = preferences.workFromHomeDays.find((day) => available(day, blocked, preferences))
-  const longRideDay = choose(preferredWfhRideDay || preferences.preferredLongRideDay, [...preferences.workFromHomeDays, 'Sunday', 'Saturday'], blocked, preferences)
+  const longRideDay = completedLongRide || cyclingToPlan <= 0 ? undefined : choose(preferredWfhRideDay || preferences.preferredLongRideDay, [...preferences.workFromHomeDays, 'Sunday', 'Saturday'], blocked, preferences)
   if (longRideDay) {
-    addWorkout(days, longRideDay, ride('Endurance ride', Math.min(25, Math.round(cyclingTarget * 0.3)), 'moderate', ['Long']))
+    addWorkout(days, longRideDay, ride('Endurance ride', Math.min(25, Math.round(cyclingTarget * 0.3), cyclingToPlan), 'moderate', ['Long']))
   }
 
-  const weeklyStrengthNames = preferences.includeCoreSession
+  const configuredStrengthNames = preferences.includeCoreSession
     ? strengthNames
     : strengthNames.filter((name) => name !== 'Core')
-  for (let i = 0; i < preferences.strengthSessions; i += 1) {
+  const weeklyStrengthNames = configuredStrengthNames.filter((name) => !completedStrengthNames.has(normalizeStrengthName(name)))
+  for (let i = 0; i < strengthToPlan; i += 1) {
     const strengthDays = DAYS.filter((dayName) => available(dayName, blocked, preferences))
         .filter((dayName) => {
           const day = days.find((item) => item.day === dayName)
           return day!.workouts.length < day!.capacity
         })
         .filter((dayName) => {
-          if (weeklyStrengthNames[i % weeklyStrengthNames.length] !== 'Legs' && !(i === 0 && preferences.includeLegSession)) return true
+          if ((weeklyStrengthNames[i % weeklyStrengthNames.length] ?? configuredStrengthNames[i % configuredStrengthNames.length]) !== 'Legs' && !(i === 0 && preferences.includeLegSession)) return true
           const index = DAYS.indexOf(dayName)
           return [DAYS[index - 1], dayName, DAYS[index + 1]]
             .filter(Boolean)
@@ -218,7 +268,7 @@ export function generateWeeklyPlan(preferences: Preferences, weekStart?: string)
         })
     const dayName = strengthDays[0]
     if (!dayName) break
-    let name = weeklyStrengthNames[i % weeklyStrengthNames.length]
+    let name = weeklyStrengthNames[i % weeklyStrengthNames.length] ?? configuredStrengthNames[i % configuredStrengthNames.length]
     let tags: string[] = []
     if (i === 0 && preferences.includeLegSession) { name = 'Legs'; tags = ['Legs'] }
     if (name === 'Core') tags = ['Core']
@@ -226,7 +276,7 @@ export function generateWeeklyPlan(preferences: Preferences, weekStart?: string)
   }
 
   const currentRun = getTotals(days).runningKm
-  let remainingRun = runningTarget - currentRun
+  let remainingRun = runningToPlan - currentRun
 
   // WFH template: a fixed 5 km lunchtime run, strength, then cycling.
   for (const dayName of preferences.workFromHomeDays) {
@@ -260,7 +310,7 @@ export function generateWeeklyPlan(preferences: Preferences, weekStart?: string)
     }
   }
 
-  let remainingCycle = cyclingTarget - getTotals(days).cyclingKm
+  let remainingCycle = cyclingToPlan - getTotals(days).cyclingKm
   const cycleCandidates = DAYS.filter((day) => available(day, blocked, preferences))
     .filter((day) => day !== longRideDay)
     .filter((dayName) => {

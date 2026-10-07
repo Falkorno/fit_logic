@@ -1,0 +1,12 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "fit-logic-strava-api",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-03",
+  "kv_namespaces": [{ "binding": "STRAVA_TOKENS", "id": "00000000000000000000000000000000" }],
+  "vars": {
+    "APP_URL": "https://fitlogic.jamestd.co.uk",
+    "ALLOWED_ORIGINS": "https://fitlogic.jamestd.co.uk,https://desktop-tlqdo0m.tail3f359d.ts.net:8443,http://localhost:43817,http://127.0.0.1:43817",
+    "STRAVA_REDIRECT_URI": "https://fitlogic.jamestd.co.uk/api/strava/callback"
+  }
+}

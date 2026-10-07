@@ -1,4 +1,4 @@
-export const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const
+﻿export const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const
 
 export type DayName = typeof DAY_NAMES[number]
 export type ActivityType = 'running' | 'cycling' | 'strength'
@@ -18,6 +18,8 @@ export interface Workout {
   completed: boolean
   locked: boolean
   notes?: string
+  source?: 'manual' | 'generated' | 'strava'
+  stravaActivityId?: string
 }
 
 export interface PlanDay {

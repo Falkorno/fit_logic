@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+﻿import { describe, expect, it } from 'vitest'
 import { generateWeeklyPlan } from './generatePlan.js'
 import { getTotals } from './validator.js'
 import { reviewRemainingWeek } from './reviewPlan.js'

@@ -1,0 +1,22 @@
+{
+  "id": "/",
+  "name": "Pulse Training Planner",
+  "short_name": "Pulse",
+  "description": "Plan, track and adapt your running, cycling and strength training.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "background_color": "#172A3A",
+  "theme_color": "#004346",
+  "categories": ["fitness", "health", "sports"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Training plan", "short_name": "Plan", "url": "/?view=plan", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Strava activities", "short_name": "Strava", "url": "/?view=activities", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

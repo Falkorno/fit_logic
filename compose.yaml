@@ -9,6 +9,7 @@ services:
         VITE_FIREBASE_STORAGE_BUCKET: ${VITE_FIREBASE_STORAGE_BUCKET:-}
         VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID:-}
         VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID:-}
+        VITE_STRAVA_API_URL: ${VITE_STRAVA_API_URL:-}
     container_name: fit-logic
     restart: unless-stopped
     ports:

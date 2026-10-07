@@ -1,0 +1,9 @@
+﻿import { describe, expect, it } from 'vitest'
+import strideWeeks from '../data/strideWeeks.json'
+import { importStrideHistory } from './strideImport.js'
+import type { Preferences } from '../planner/types.js'
+const preferences: Preferences = { workFromHomeDays: ['Tuesday', 'Thursday'], busyDays: ['Wednesday'], unavailableDays: [], runningMinKm: 58, runningPreferredKm: 60, runningMaxKm: 62, cyclingMinKm: 70, cyclingPreferredKm: 80, cyclingMaxKm: 90, strengthSessions: 4, previousRunningKm: 60, previousCyclingKm: 80, previousLongRunKm: 24, includeSpeedSession: false, includeLegSession: false, includeCoreSession: true, allowWeekdayDoubles: true, preferredLongRunDay: 'Saturday', preferredLongRideDay: 'Tuesday', previousWeekFatigue: 'normal', restDay: null }
+describe('importStrideHistory', () => {
+  it('imports only previous weeks and retains strength sessions', () => { const history = importStrideHistory(strideWeeks, preferences, '2026-10-05'); expect(Object.keys(history)).toHaveLength(10); expect(history['2026-10-05']).toBeUndefined(); expect(Object.values(history).flatMap(week => week.days).flatMap(day => day.workouts).filter(workout => workout.activity === 'strength')).toHaveLength(54) })
+  it('preserves completion data without importing exercise details', () => { const history = importStrideHistory(strideWeeks, preferences, '2026-10-05'); const arms = history['2026-07-27'].days.flatMap(day => day.workouts).find(workout => workout.name === 'Arms' && workout.completed); expect(arms).toMatchObject({ activity: 'strength', durationMinutes: 40, completed: true }); expect(arms).not.toHaveProperty('exercises') })
+})

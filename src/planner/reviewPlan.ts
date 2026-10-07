@@ -1,4 +1,4 @@
-import { DAYS } from './generatePlan.js'
+﻿import { DAYS } from './generatePlan.js'
 import type { ActivityType, PlanDay, PlanReview, Preferences, ReviewAdjustment, Totals } from './types.js'
 
 function distanceCaps(day: PlanDay, workout: PlanDay['workouts'][number], preferences: Preferences): { min: number, max: number } | null {

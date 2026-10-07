@@ -5,4 +5,7 @@ dist/
 !.env.example
 *.log
 .DS_Store
-
+.dev.vars*
+.local-kv.json
+.wrangler/
+production-server.log

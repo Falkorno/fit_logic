@@ -1,4 +1,4 @@
-export function getTotals(days: PlanDay[]): Totals {
+﻿export function getTotals(days: PlanDay[]): Totals {
   return days.reduce((totals, day) => {
     for (const workout of day.workouts) {
       const distance = workout.completed && workout.actualDistanceKm != null ? workout.actualDistanceKm : workout.distanceKm
