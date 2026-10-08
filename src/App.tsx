@@ -67,11 +67,11 @@ function DayPicker({ label, value, onChange }: { label: string, value: DayName[]
 }
 
 function NumberField({ label, value, suffix, onChange }: { label: string, value: number, suffix: string, onChange: (value: number) => void }) {
-  return <label className="block">
+  return <label className="block min-w-0">
     <span className="mb-1.5 block text-xs font-semibold text-slate-200">{label}</span>
-    <div className="flex items-center rounded-xl border border-white/10 bg-[#203747] px-3 shadow-sm transition focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-100">
-      <input className="min-w-0 flex-1 bg-transparent py-2.5 text-sm font-bold text-white" type="number" min="0" value={value} onChange={(e) => onChange(Number(e.target.value))} />
-      <span className="text-[11px] font-medium text-slate-300">{suffix}</span>
+    <div className="flex min-w-0 items-center gap-2 rounded-xl border border-white/10 bg-[#203747] px-3 shadow-sm transition focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-100">
+      <input className="w-0 min-w-0 flex-1 bg-transparent py-2.5 text-sm font-bold text-white" type="number" min="0" value={value} onChange={(e) => onChange(Number(e.target.value))} />
+      <span className="shrink-0 text-[11px] font-medium text-slate-300">{suffix}</span>
     </div>
   </label>
 }
